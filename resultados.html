@@ -6,8 +6,31 @@
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background: #1a1a1a; color: white; }
         .container { max-width: 1000px; margin: auto; }
-        .header-info { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #444; padding-bottom: 10px; margin-bottom: 20px; }
         
+        /* Ajuste do Header para acomodar o QR Code */
+        .header-info { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 2px solid #444; 
+            padding-bottom: 15px; 
+            margin-bottom: 20px; 
+        }
+        
+        .header-left { display: flex; flex-direction: column; }
+        
+        /* Estilo do Container do QR Code */
+        .qr-code-box {
+            background: white;
+            padding: 5px;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .qr-code-box img { width: 80px; height: 80px; }
+        .qr-code-box span { color: #000; font-size: 8px; font-weight: bold; margin-top: 2px; }
+
         /* Estilo do Filtro */
         .filter-section { margin-bottom: 20px; background: #2a2a2a; padding: 15px; border-radius: 5px; }
         select { padding: 10px; background: #333; color: white; border: 1px solid #2196F3; border-radius: 4px; width: 100%; max-width: 300px; cursor: pointer; }
@@ -20,15 +43,22 @@
         .tempo-total { color: #4CAF50; font-weight: bold; }
         h2 { color: #2196F3; margin: 0; }
         h4 { background: #444; padding: 10px; margin: 0; border-left: 5px solid #2196F3; }
-        #timer { font-size: 0.8em; color: #aaa; }
+        #timer { font-size: 0.8em; color: #aaa; margin-top: 5px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header-info">
-        <h2 id="etapaNome">CARREGANDO ETAPA...</h2>
-        <div id="timer"> <span id="segundos">5</span>s</div>
+        <div class="header-left">
+            <h2 id="etapaNome">CARREGANDO ETAPA...</h2>
+            <div id="timer">Atualizando em: <span id="segundos">5</span>s</div>
+        </div>
+        
+        <div class="qr-code-box">
+            <img src="https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=https://italomota2011.github.io/crono/resultados.html&choe=UTF-8" alt="QR Code Resultados">
+            <span>ACESSE AQUI</span>
+        </div>
     </div>
 
     <div class="filter-section">
@@ -67,12 +97,10 @@
         const categoriasParaExibir = ["PRODUCTION", "SUPER PRODUCTION", "PROTOTIPO", "UTV", "INICIANTE"];
 
         categoriasParaExibir.forEach(cat => {
-            // Se o filtro não for "TODAS" e a categoria atual não for a selecionada, pula para a próxima
             if (categoriaSelecionada !== "TODAS" && categoriaSelecionada !== cat) return;
 
             let filtrados = dados.filter(d => d.categoria === cat).sort((a, b) => a.total - b.total);
             
-            // Se não houver dados para essa categoria específica e o usuário filtrou por ela
             if(filtrados.length === 0) {
                 if (categoriaSelecionada === cat) {
                     container.innerHTML = "<p>Nenhum resultado encontrado para esta categoria.</p>";
@@ -100,7 +128,6 @@
         });
     }
 
-    // Timer de 5 segundos
     let contagem = 5;
     setInterval(() => {
         contagem--;
@@ -111,7 +138,6 @@
         }
     }, 1000);
 
-    // Executa ao carregar a página
     window.onload = atualizar;
 </script>
 
