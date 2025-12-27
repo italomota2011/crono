@@ -1,0 +1,105 @@
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyC4ajZM_W0_qGOlrlRoPn6DUsUBUm4qAcc",
+        authDomain: "crono-rrb.firebaseapp.com",
+        databaseURL: "https://crono-rrb-default-rtdb.firebaseio.com",
+        projectId: "crono-rrb",
+        storageBucket: "crono-rrb.firebasestorage.app",
+        messagingSenderId: "1472207720",
+        appId: "1:1472207720:web:11502aed4117b1fda714dd"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Carrega o nome da etapa ao abrir a página
+    db.ref('configuracoes/etapaAtual').once('value', snapshot => {
+        if(snapshot.exists()) {
+            document.getElementById('etapa').value = snapshot.val();
+        }
+    });
+
+    // Salva no LocalStorage e no Firebase em tempo real
+    function salvarEtapaLocal() {
+        const nomeEtapa = document.getElementById('etapa').value;
+        localStorage.setItem('etapaFixa', nomeEtapa);
+        db.ref('configuracoes').update({ etapaAtual: nomeEtapa });
+    }
+
+    document.getElementById('tempo').addEventListener('input', function (e) {
+        let v = e.target.value.replace(/\D/g, '');
+        if (v.length > 4) {
+            v = v.replace(/(\d{2})(\d{2})(\d{3})/, "$1:$2:$3");
+        } else if (v.length > 2) {
+            v = v.replace(/(\d{2})(\d{2})/, "$1:$2");
+        }
+        e.target.value = v;
+    });
+
+    async function enviarDados() {
+        const etapa = document.getElementById('etapa').value;
+        const categoria = document.getElementById('categoria').value;
+        const piloto = document.getElementById('piloto').value.trim().toUpperCase();
+        const tempo = document.getElementById('tempo').value;
+
+        if (!etapa || !piloto || tempo.length < 9) {
+            alert("Por favor, preencha todos os campos. O tempo deve ter o formato 00:00:000");
+            return;
+        }
+
+        const idPiloto = btoa(categoria + "_" + piloto).replace(/=/g, ""); 
+        const ref = db.ref('pilotos/' + idPiloto);
+
+        const snapshot = await ref.once('value');
+        const pData = snapshot.val();
+
+        if (!pData) {
+            await ref.set({
+                categoria: categoria,
+                piloto: piloto,
+                volta1: tempo,
+                volta2: "00:00:000"
+            });
+            alert("Volta 1 salva!");
+        } else {
+            if (pData.volta2 === "00:00:000") {
+                await ref.update({ volta2: tempo });
+                alert("Volta 2 salva!");
+            } else {
+                alert("Este piloto já possui as 2 voltas registradas nesta categoria!");
+            }
+        }
+        document.getElementById('tempo').value = "";
+    }
+
+    function limparBanco() {
+        const senha = prompt("Digite a senha para APAGAR TUDO:");
+        if (senha === "123456") {
+            db.ref('pilotos').remove()
+                .then(() => alert("Todos os dados foram apagados com sucesso!"))
+                .catch((e) => alert("Erro ao apagar: " + e));
+        } else {
+            alert("Senha incorreta!");
+        }
+    }
+
+    function tParaMs(t) {
+        if (!t || t === "00:00:000") return 0;
+        const p = t.split(':');
+        return (parseInt(p[0]) * 60000) + (parseInt(p[1]) * 1000) + parseInt(p[2]);
+    }
+
+    function msParaT(ms) {
+        if (ms === 0) return "00:00:000";
+        const min = Math.floor(ms / 60000);
+        const seg = Math.floor((ms % 60000) / 1000);
+        const mil = ms % 1000;
+        return `${String(min).padStart(2,'0')}:${String(seg).padStart(2,'0')}:${String(mil).padStart(3,'0')}`;
+    }
+
+    async function exportarPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        const snapshot = await db.ref('pilotos').once('value');
+        const data = snapshot.val();
+        if (!data) {
