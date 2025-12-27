@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cronometragem - Cadastro</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background-color: #f0f2f5; padding: 20px; }
+        .card { max-width: 450px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        img { width: 180px; margin-bottom: 10px; }
+        input, select, button { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        button { cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-save { background-color: #28a745; color: white; border: none; }
+        .btn-save:hover { background-color: #218838; }
+        .btn-clear { background-color: #dc3545; color: white; border: none; font-size: 12px; margin-top: 30px; }
+        .btn-nav { background-color: #007bff; color: white; border: none; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRakETPU1WsKmBi2ppw7axi6RJ9ie0KAWookA&s" alt="Logo">
+        
+        <input type="text" id="etapa" placeholder="Nome da Etapa (ex: GP Brasil)" oninput="salvarEtapaFirebase()">
+        
+        <select id="categoria">
+            <option value="PRODUCTION">PRODUCTION</option>
+            <option value="SUPER PRODUCTION">SUPER PRODUCTION</option>
+            <option value="PROTOTIPO">PROTOTIPO</option>
+            <option value="UTV">UTV</option>
+            <option value="INICIANTE">INICIANTE</option>
+        </select>
+
+        <input type="text" id="piloto" placeholder="Nome do Piloto" style="text-transform: uppercase;">
+        
+        <input type="text" id="tempo" placeholder="Tempo (MinSegMil) ex: 0105123" maxlength="9">
+
+        <button class="btn-save" onclick="enviarDados()">SALVAR VOLTA</button>
+        
+        <hr>
+        <button class="btn-nav" onclick="window.location.href='alteracao.html'">IR PARA ALTERAÇÃO</button>
+        <button class="btn-nav" onclick="window.location.href='resultados.html'" style="background-color: #6c757d;">VER RESULTADOS</button>
+        
+        <button class="btn-clear" onclick="limparBanco()">LIMPAR TODOS OS DADOS (SENHA)</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC4ajZM_W0_qGOlrlRoPn6DUsUBUm4qAcc",
+            authDomain: "crono-rrb.firebaseapp.com",
+            databaseURL: "https://crono-rrb-default-rtdb.firebaseio.com",
+            projectId: "crono-rrb",
+            storageBucket: "crono-rrb.firebasestorage.app",
+            messagingSenderId: "1472207720",
+            appId: "1:1472207720:web:11502aed4117b1fda714dd"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Carregar etapa do Firebase ao abrir
+        db.ref('configuracao/etapaAtual').on('value', (snapshot) => {
+            if(snapshot.exists()) {
+                document.getElementById('etapa').value = snapshot.val();
+            }
+        });
+
+        function salvarEtapaFirebase() {
+            const nomeEtapa = document.getElementById('etapa').value;
+            db.ref('configuracao').update({ etapaAtual: nomeEtapa });
+        }
+
+        document.getElementById('tempo').addEventListener('input', function (e) {
+            let v = e.target.value.replace(/\D/g, ''); 
+            if (v.length > 4) {
+                v = v.replace(/(\d{2})(\d{2})(\d{3})/, "$1:$2:$3");
+            } else if (v.length > 2) {
+                v = v.replace(/(\d{2})(\d{2})/, "$1:$2");
+            }
+            e.target.value = v;
+        });
+
+        async function enviarDados() {
+            const etapa = document.getElementById('etapa').value;
+            const categoria = document.getElementById('categoria').value;
+            const piloto = document.getElementById('piloto').value.trim().toUpperCase();
+            const tempo = document.getElementById('tempo').value;
+
+            if (!etapa || !piloto || tempo.length < 9) {
+                alert("Preencha tudo. Formato: 00:00:000");
+                return;
+            }
+
+            const idPiloto = btoa(categoria + "_" + piloto).replace(/=/g, ""); 
+            const ref = db.ref('pilotos/' + idPiloto);
+
+            const snapshot = await ref.once('value');
+            const pData = snapshot.val();
+
+            if (!pData) {
+                await ref.set({ categoria, piloto, volta1: tempo, volta2: "00:00:000" });
+                alert("Volta 1 salva!");
+            } else {
+                if (pData.volta2 === "00:00:000") {
+                    await ref.update({ volta2: tempo });
+                    alert("Volta 2 salva!");
+                } else {
+                    alert("Este piloto já possui as 2 voltas!");
+                }
+            }
+            document.getElementById('tempo').value = "";
+        }
+
+        function limparBanco() {
+            const senha = prompt("Senha para APAGAR TUDO:");
+            if (senha === "123456") {
+                db.ref('pilotos').remove()
+                .then(() => alert("Dados apagados!"));
+            }
+        }
+    </script>
+</body>
+</html>
