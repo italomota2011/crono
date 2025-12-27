@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Cadastro de Cronometragem</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-5">
+    <div class="max-w-md mx-auto bg-white p-8 rounded shadow">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRakETPU1WsKmBi2ppw7axi6RJ9ie0KAWookA&s" class="mx-auto mb-6 w-32">
+        
+        <div class="mb-4">
+            <label>Etapa:</label>
+            <input type="text" id="etapa" class="w-full border p-2 rounded" placeholder="Ex: Etapa Verão">
+        </div>
+
+        <div class="mb-4">
+            <label>Categoria:</label>
+            <select id="categoria" class="w-full border p-2 rounded">
+                <option value="PRODUCTION">PRODUCTION</option>
+                <option value="SUPER PRODUCTION">SUPER PRODUCTION</option>
+                <option value="PROTOTIPO">PROTOTIPO</option>
+                <option value="UTV">UTV</option>
+                <option value="INICIANTE">INICIANTE</option>
+            </select>
+        </div>
+
+        <div class="mb-4">
+            <label>Piloto:</label>
+            <input type="text" id="piloto" class="w-full border p-2 rounded">
+        </div>
+
+        <div class="mb-4">
+            <label>Tempo (Min:Seg:Mil):</label>
+            <input type="text" id="tempo" maxlength="9" placeholder="00:00:000" class="w-full border p-2 rounded text-2xl text-center">
+        </div>
+
+        <button onclick="salvarTempo()" class="w-full bg-blue-600 text-white p-3 rounded font-bold">SALVAR TEMPO</button>
+        
+        <div class="mt-8 flex justify-between gap-2">
+            <button onclick="limparBanco()" class="bg-red-500 text-white p-2 rounded text-xs">LIMPAR TUDO (Senha)</button>
+            <a href="alteracao.html" class="bg-gray-500 text-white p-2 rounded text-xs">PAGINA ALTERAÇÃO</a>
+            <a href="resultados.html" class="bg-green-500 text-white p-2 rounded text-xs">RESULTADOS</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, get, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC4ajZM_W0_qGOlrlRoPn6DUsUBUm4qAcc",
+            authDomain: "crono-rrb.firebaseapp.com",
+            databaseURL: "https://crono-rrb-default-rtdb.firebaseio.com",
+            projectId: "crono-rrb",
+            storageBucket: "crono-rrb.firebasestorage.app",
+            messagingSenderId: "1472207720",
+            appId: "1:1472207720:web:11502aed4117b1fda714dd"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Máscara Automática 00:00:000
+        const inputTempo = document.getElementById('tempo');
+        inputTempo.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 2) value = value.slice(0, 2) + ':' + value.slice(2);
+            if (value.length > 5) value = value.slice(0, 5) + ':' + value.slice(5);
+            e.target.value = value;
+        });
+
+        window.salvarTempo = async () => {
+            const etapa = document.getElementById('etapa').value;
+            const cat = document.getElementById('categoria').value;
+            const piloto = document.getElementById('piloto').value.toUpperCase().trim();
+            const tempo = document.getElementById('tempo').value;
+
+            if(!piloto || tempo.length < 9) return alert("Preencha os dados corretamente");
+
+            const caminho = `dados/${cat}/${piloto}`;
+            const snapshot = await get(ref(db, caminho));
+            const dadosAtuais = snapshot.val();
+
+            if (!dadosAtuais) {
+                await set(ref(db, caminho), { piloto, volta1: tempo, volta2: "00:00:000", etapa });
+            } else if (dadosAtuais.volta2 === "00:00:000") {
+                await update(ref(db, caminho), { volta2: tempo });
+            } else {
+                alert("Limite de 2 voltas atingido para este piloto nesta categoria.");
+            }
+            
+            document.getElementById('piloto').value = "";
+            document.getElementById('tempo').value = "";
+            // Mantém a Etapa fixada
+        };
+
+        window.limparBanco = () => {
+            if(prompt("Digite a senha:") === "123456") {
+                remove(ref(db, 'dados')).then(() => alert("Dados limpos!"));
+            }
+        };
+    </script>
+</body>
+</html>

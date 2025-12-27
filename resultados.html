@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Resultados</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body class="bg-white p-5">
+    <div class="flex justify-between items-start">
+        <div>
+            <h1 class="text-2xl font-bold">RANKING DE TEMPOS</h1>
+            <p id="timer" class="text-red-500 font-bold">Atualizando em: 5s</p>
+        </div>
+        <img src="https://raw.githubusercontent.com/italomota2011/crono/main/QR.png" class="w-24">
+    </div>
+
+    <div class="my-4">
+        <select id="filtroCat" onchange="renderizarTabela()" class="border p-2 rounded">
+            <option value="TODAS">TODAS AS CATEGORIAS</option>
+            <option value="PRODUCTION">PRODUCTION</option>
+            <option value="SUPER PRODUCTION">SUPER PRODUCTION</option>
+            <option value="PROTOTIPO">PROTOTIPO</option>
+            <option value="UTV">UTV</option>
+            <option value="INICIANTE">INICIANTE</option>
+        </select>
+        <button onclick="exportarPDF()" class="bg-black text-white px-4 py-2 rounded ml-4">Exportar PDF</button>
+    </div>
+
+    <div id="tabelas-container"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = { /* ... mesma config ... */ };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let dadosGlobais = {};
+        let contador = 5;
+
+        // Função para converter 00:00:000 em Milissegundos para cálculo
+        function tempoParaMs(tempo) {
+            const partes = tempo.split(':');
+            return (parseInt(partes[0]) * 60000) + (parseInt(partes[1]) * 1000) + parseInt(partes[2]);
+        }
+
+        function msParaTempo(ms) {
+            const min = Math.floor(ms / 60000);
+            const seg = Math.floor((ms % 60000) / 1000);
+            const mil = ms % 1000;
+            return `${String(min).padStart(2, '0')}:${String(seg).padStart(2, '0')}:${String(mil).padStart(3, '0')}`;
+        }
+
+        onValue(ref(db, 'dados'), (snapshot) => {
+            dadosGlobais = snapshot.val() || {};
+            renderizarTabela();
+        });
+
+        // Timer de 5 segundos
+        setInterval(() => {
+            contador--;
+            document.getElementById('timer').innerText = `Atualizando em: ${contador}s`;
+            if(contador <= 0) {
+                contador = 5;
+                renderizarTabela();
+            }
+        }, 1000);
+
+        window.renderizarTabela = () => {
+            const container = document.getElementById('tabelas-container');
+            const filtro = document.getElementById('filtroCat').value;
+            container.innerHTML = "";
+
+            Object.keys(dadosGlobais).forEach(cat => {
+                if (filtro !== "TODAS" && filtro !== cat) return;
+
+                let pilotos = Object.values(dadosGlobais[cat]).map(p => {
+                    const totalMs = tempoParaMs(p.volta1) + tempoParaMs(p.volta2);
+                    return { ...p, totalMs, totalStr: msParaTempo(totalMs) };
+                }).sort((a, b) => a.totalMs - b.totalMs);
+
+                let html = `<h2 class="bg-gray-800 text-white p-2 mt-4">${cat}</h2>
+                <table class="w-full text-left border-collapse border">
+                    <thead><tr class="bg-gray-200">
+                        <th class="border p-1">Pos</th><th class="border p-1">Piloto</th>
+                        <th class="border p-1">V1</th><th class="border p-1">V2</th>
+                        <th class="border p-1">Total</th>
+                    </tr></thead><tbody>`;
+                
+                pilotos.forEach((p, idx) => {
+                    html += `<tr>
+                        <td class="border p-1">${idx+1}º</td><td class="border p-1 font-bold">${p.piloto}</td>
+                        <td class="border p-1">${p.volta1}</td><td class="border p-1">${p.volta2}</td>
+                        <td class="border p-1 font-bold text-blue-700">${p.totalStr}</td>
+                    </tr>`;
+                });
+                html += `</tbody></table>`;
+                container.innerHTML += html;
+            });
+        };
+
+        window.exportarPDF = () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const logo = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRakETPU1WsKmBi2ppw7axi6RJ9ie0KAWookA&s";
+            
+            // Lógica de exportação simplificada para o exemplo
+            doc.text("Relatório de Tempos", 14, 20);
+            doc.save("resultado_geral.pdf");
+        };
+    </script>
+</body>
+</html>
