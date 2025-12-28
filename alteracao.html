@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Alterar Tempos - Sistema Crono</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background-color: #f0f2f5; padding: 20px; }
+        .card { max-width: 450px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        img { width: 150px; margin-bottom: 20px; }
+        label { display: block; text-align: left; font-size: 14px; color: #555; margin-top: 15px; font-weight: bold; }
+        input, select, button { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        .btn-update { background-color: #f39c12; color: white; border: none; font-weight: bold; cursor: pointer; }
+        .btn-back { background-color: #6c757d; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRakETPU1WsKmBi2ppw7axi6RJ9ie0KAWookA&s" alt="Logo">
+        <h3>Alterar Dados do Piloto</h3>
+
+        <label>1. Categoria:</label>
+        <select id="categoria" onchange="buscarPilotos()">
+            <option value="">-- Selecione --</option>
+            <option value="PRODUCTION">PRODUCTION</option>
+            <option value="SUPER PRODUCTION">SUPER PRODUCTION</option>
+            <option value="PROTOTIPO">PROTOTIPO</option>
+            <option value="UTV">UTV</option>
+            <option value="INICIANTE">INICIANTE</option>
+        </select>
+
+        <label>2. Piloto:</label>
+        <select id="piloto" onchange="preencherTempos()">
+            <option value="">-- Selecione a categoria --</option>
+        </select>
+
+        <label>Tempo Volta 1:</label>
+        <input type="text" id="v1" placeholder="00:00:000" maxlength="9">
+
+        <label>Tempo Volta 2:</label>
+        <input type="text" id="v2" placeholder="00:00:000" maxlength="9">
+
+        <button class="btn-update" onclick="salvarAlteracao()">CONFIRMAR ALTERAÇÃO (SENHA)</button>
+        <button class="btn-back" onclick="window.location.href='index.html'">VOLTAR AO INÍCIO</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC4ajZM_W0_qGOlrlRoPn6DUsUBUm4qAcc",
+            authDomain: "crono-rrb.firebaseapp.com",
+            databaseURL: "https://crono-rrb-default-rtdb.firebaseio.com",
+            projectId: "crono-rrb",
+            storageBucket: "crono-rrb.firebasestorage.app",
+            messagingSenderId: "1472207720",
+            appId: "1:1472207720:web:11502aed4117b1fda714dd"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let dadosCarregados = {};
+
+        const aplicarMascara = (e) => {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v.length > 4) v = v.replace(/(\d{2})(\d{2})(\d{3})/, "$1:$2:$3");
+            else if (v.length > 2) v = v.replace(/(\d{2})(\d{2})/, "$1:$2");
+            e.target.value = v;
+        };
+
+        document.getElementById('v1').addEventListener('input', aplicarMascara);
+        document.getElementById('v2').addEventListener('input', aplicarMascara);
+
+        function buscarPilotos() {
+            const cat = document.getElementById('categoria').value;
+            const selectPiloto = document.getElementById('piloto');
+            if (!cat) return;
+            db.ref('pilotos').orderByChild('categoria').equalTo(cat).once('value', snapshot => {
+                dadosCarregados = snapshot.val() || {};
+                selectPiloto.innerHTML = '<option value="">-- Selecione o Piloto --</option>';
+                for (let id in dadosCarregados) {
+                    let opt = document.createElement('option');
+                    opt.value = id; opt.text = dadosCarregados[id].piloto;
+                    selectPiloto.appendChild(opt);
+                }
+            });
+        }
+
+        function preencherTempos() {
+            const id = document.getElementById('piloto').value;
+            if (id && dadosCarregados[id]) {
+                document.getElementById('v1').value = dadosCarregados[id].volta1;
+                document.getElementById('v2').value = dadosCarregados[id].volta2;
+            }
+        }
+
+        function salvarAlteracao() {
+            const id = document.getElementById('piloto').value;
+            if (!id) return alert("Selecione um piloto!");
+            if (prompt("Senha (123456):") !== "123456") return alert("Senha incorreta!");
+            
+            db.ref('pilotos/' + id).update({
+                volta1: document.getElementById('v1').value || "00:00:000",
+                volta2: document.getElementById('v2').value || "00:00:000"
+            }).then(() => alert("Atualizado com sucesso!"));
+        }
+    </script>
+</body>
+</html>
