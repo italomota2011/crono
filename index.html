@@ -36,7 +36,7 @@
 
     <div id="login-overlay">
         <div class="card">
-            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRakETPU1WsKmBi2ppw7axi6RJ9ie0KAWookA&s" alt="Logo">
+            <img src="https://raw.githubusercontent.com/racekrono/adv/refs/heads/main/Logo.png" alt="Logo">
             <h3>Acesso Restrito</h3>
             <input type="password" id="senhaAcesso" placeholder="Digite a senha de acesso">
             <button class="btn-nav" onclick="verificarAcesso()">ENTRAR</button>
@@ -91,7 +91,7 @@
         // --- LÓGICA DE ACESSO ---
         function verificarAcesso() {
             const senhaDigitada = document.getElementById('senhaAcesso').value;
-            if (senhaDigitada === "261291") {
+            if (senhaDigitada === "123456") {
                 document.getElementById('login-overlay').style.display = 'none';
                 sessionStorage.setItem('logado', 'true');
             } else {
@@ -175,7 +175,7 @@
 
         function limparBanco() {
             const senha = prompt("CUIDADO: Isso apagará PILOTOS e CONFIGURAÇÕES.\nDigite a senha para confirmar:");
-            if (senha === "261291") {
+            if (senha === "123456") {
                 db.ref('/').remove()
                     .then(() => {
                         alert("Todos os dados do banco foram resetados!");
