@@ -91,7 +91,7 @@
         // --- LÓGICA DE ACESSO ---
         function verificarAcesso() {
             const senhaDigitada = document.getElementById('senhaAcesso').value;
-            if (senhaDigitada === "123456") {
+            if (senhaDigitada === "75999862628") {
                 document.getElementById('login-overlay').style.display = 'none';
                 sessionStorage.setItem('logado', 'true');
             } else {
@@ -175,7 +175,7 @@
 
         function limparBanco() {
             const senha = prompt("CUIDADO: Isso apagará PILOTOS e CONFIGURAÇÕES.\nDigite a senha para confirmar:");
-            if (senha === "123456") {
+            if (senha === "75999862628") {
                 db.ref('/').remove()
                     .then(() => {
                         alert("Todos os dados do banco foram resetados!");
