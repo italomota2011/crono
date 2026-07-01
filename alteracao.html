@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Alterar Tempos - Sistema Crono</title>
+    <title>Alterar Tempos</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background-color: #f0f2f5; padding: 20px; }
         .card { max-width: 450px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -20,7 +20,7 @@
 <body>
 
     <div class="card">
-        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRakETPU1WsKmBi2ppw7axi6RJ9ie0KAWookA&s" alt="Logo">
+        <img src="https://raw.githubusercontent.com/racekrono/adv/refs/heads/main/Logo.png" alt="Logo">
         <h3>Alterar Dados do Piloto</h3>
 
         <label>1. Selecione a Categoria:</label>
@@ -33,7 +33,7 @@
             <option value="INICIANTE">INICIANTE</option>
         </select>
 
-        <label>2. Selecione o Piloto:</label>
+        <label>2. Selecione o Piloto / Entrada:</label>
         <select id="piloto" onchange="preencherTempos()">
             <option value="">-- Selecione a categoria acima --</option>
         </select>
@@ -45,7 +45,7 @@
         <input type="text" id="v2" placeholder="00:00:000" maxlength="9">
 
         <button class="btn-update" onclick="salvarAlteracao()">CONFIRMAR ALTERAÇÃO</button>
-        <button class="btn-delete" onclick="excluirPiloto()">EXCLUIR PILOTO</button>
+        <button class="btn-delete" onclick="excluirPiloto()">EXCLUIR ESTA ENTRADA</button>
         <button class="btn-back" onclick="window.location.href='index.html'">VOLTAR AO INÍCIO</button>
     </div>
 
@@ -80,19 +80,37 @@
             });
         });
 
+        // MUDANÇA: Agora calcula o número da entrada de cada piloto cronologicamente antes de listar
         function buscarPilotos() {
             const cat = document.getElementById('categoria').value;
             const selectPiloto = document.getElementById('piloto');
             if (!cat) return;
 
-            db.ref('pilotos').orderByChild('categoria').equalTo(cat).once('value', snapshot => {
-                dadosCarregados = snapshot.val() || {};
+            db.ref('pilotos').once('value', snapshot => {
+                const todosDados = snapshot.val() || {};
+                dadosCarregados = todosDados; 
+                
                 selectPiloto.innerHTML = '<option value="">-- Selecione o Piloto --</option>';
-                for (let id in dadosCarregados) {
-                    let option = document.createElement('option');
-                    option.value = id;
-                    option.text = dadosCarregados[id].piloto;
-                    selectPiloto.appendChild(option);
+                
+                let contadorIndividual = {};
+
+                for (let id in todosDados) {
+                    let registro = todosDados[id];
+                    
+                    if (registro.categoria === cat) {
+                        const nomePiloto = registro.piloto;
+                        
+                        if (!contadorIndividual[nomePiloto]) {
+                            contadorIndividual[nomePiloto] = 1;
+                        } else {
+                            contadorIndividual[nomePiloto]++;
+                        }
+
+                        let option = document.createElement('option');
+                        option.value = id; // O ID gerado pelo push() agora fica salvo aqui de forma precisa
+                        option.text = `${nomePiloto} (Entrada ${contadorIndividual[nomePiloto]})`;
+                        selectPiloto.appendChild(option);
+                    }
                 }
             });
         }
@@ -118,7 +136,10 @@
             const senha = prompt("Senha para alterar:");
             if (senha === "261291") {
                 db.ref('pilotos/' + id).update({ volta1: tempo1, volta2: tempo2 })
-                .then(() => alert("Dados atualizados com sucesso!"));
+                .then(() => {
+                    alert("Dados atualizados com sucesso!");
+                    buscarPilotos(); // Recarrega a lista preservando a categoria
+                });
             } else if (senha !== null) {
                 alert("Senha incorreta!");
             }
@@ -131,14 +152,14 @@
                 return;
             }
 
-            const nomePiloto = dadosCarregados[id].piloto;
-            const senha = prompt(`Digite a senha para EXCLUIR o piloto ${nomePiloto}:`);
+            const textoSelecionado = document.getElementById('piloto').options[document.getElementById('piloto').selectedIndex].text;
+            const senha = prompt(`Digite a senha para EXCLUIR o registro: ${textoSelecionado}`);
 
             if (senha === "261291") {
                 db.ref('pilotos/' + id).remove()
                     .then(() => {
-                        alert("Piloto excluído com sucesso!");
-                        location.reload(); // Recarrega para limpar os campos
+                        alert("Entrada excluída com sucesso!");
+                        location.reload();
                     })
                     .catch((error) => alert("Erro ao excluir: " + error));
             } else if (senha !== null) {
