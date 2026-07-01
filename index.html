@@ -285,7 +285,7 @@
                             const rows = rankingFinal.map((p, i) => [
                                 `${i + 1}º`, 
                                 p.piloto, 
-                                `Entrada ${p.numeroEntrada}`, 
+                                `${p.numeroEntrada}`, 
                                 p.volta1, 
                                 p.volta2, 
                                 p.totalStr
@@ -293,7 +293,7 @@
                             
                             doc.autoTable({
                                 startY: y + 5,
-                                head: [['Pos', 'Piloto', 'Origem do Tempo', 'Volta 1', 'Volta 2', 'Tempo Total']],
+                                head: [['Pos', 'Piloto', 'Entrada de pista', 'Volta 1', 'Volta 2', 'Tempo Total']],
                                 body: rows,
                                 theme: 'grid',
                                 headStyles: { fillColor: [40, 167, 69] }, // Cor verde para destacar que é a classificação final
