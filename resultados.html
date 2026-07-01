@@ -106,7 +106,7 @@
                         html += `<h3>CATEGORIA: ${cat}</h3><table><thead><tr><th>Entrada de Pista</th><th>Piloto</th><th>Volta 1</th><th>Volta 2</th><th>Total</th></tr></thead><tbody>`;
                         
                         filtrados.forEach((p) => {
-                            html += `<tr><td>Nº ${p.numeroEntrada}</td><td>${p.piloto}</td><td>${p.volta1}</td><td>${p.volta2}</td><td><strong>${p.totalStr}</strong></td></tr>`;
+                            html += `<tr><td>${p.numeroEntrada}</td><td>${p.piloto}</td><td>${p.volta1}</td><td>${p.volta2}</td><td><strong>${p.totalStr}</strong></td></tr>`;
                         });
                         html += `</tbody></table>`;
                     }
