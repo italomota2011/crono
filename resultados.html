@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Ranking por Menor Tempo com Entrada</title>
+    <title>Painel de Tempos</title>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }
         .header-container { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
@@ -93,7 +93,7 @@
                         entradasComNumero.sort((a, b) => a.totalMs - b.totalMs);
 
                         // Monta a tabela exibindo tanto o número da Entrada quanto o Tempo Ordenado
-                        html += `<h3>CATEGORIA: ${cat}</h3><table><thead><tr><th>Entrada</th><th>Piloto</th><th>Volta 1</th><th>Volta 2</th><th>Total</th></tr></thead><tbody>`;
+                        html += `<h3>CATEGORIA: ${cat}</h3><table><thead><tr><th>Entrada de Pista</th><th>Piloto</th><th>Volta 1</th><th>Volta 2</th><th>Total</th></tr></thead><tbody>`;
                         
                         entradasComNumero.forEach((p) => {
                             html += `<tr><td>Nº ${p.numeroEntrada}</td><td>${p.piloto}</td><td>${p.volta1}</td><td>${p.volta2}</td><td><strong>${p.totalStr}</strong></td></tr>`;
