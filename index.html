@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cronometragem - Cadastro</title>
+    <title>Rally Indoor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
@@ -61,7 +61,7 @@
             
             <input type="text" id="tempo" placeholder="00:00:000" maxlength="9">
 
-            <button class="btn-save" onclick="enviarDados()">SALVAR VOLTA</button>
+            <button class="btn-save" onclick="enviarDados()">SALVA VOLTA</button>
             <button class="btn-pdf" onclick="exportarPDF()">RELATÓRIO DE PROVA</button>
             
             <hr>
@@ -93,21 +93,18 @@
             const senhaDigitada = document.getElementById('senhaAcesso').value;
             if (senhaDigitada === "261291") {
                 document.getElementById('login-overlay').style.display = 'none';
-                // Opcional: Salvar na sessão para não pedir de novo ao dar F5
                 sessionStorage.setItem('logado', 'true');
             } else {
                 alert("Senha incorreta!");
             }
         }
 
-        // Verifica se já estava logado nesta sessão
         window.onload = function() {
             if (sessionStorage.getItem('logado') === 'true') {
                 document.getElementById('login-overlay').style.display = 'none';
             }
         };
 
-        // Escuta a tecla ENTER no campo de senha
         document.getElementById('senhaAcesso').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') verificarAcesso();
         });
@@ -134,6 +131,7 @@
             e.target.value = v;
         });
 
+        // Opção 1: Lógica automática para suportar múltiplas entradas por piloto
         async function enviarDados() {
             const etapa = document.getElementById('etapa').value;
             const categoria = document.getElementById('categoria').value;
@@ -145,27 +143,32 @@
                 return;
             }
 
-            const idPiloto = btoa(categoria + "_" + piloto).replace(/=/g, ""); 
-            const ref = db.ref('pilotos/' + idPiloto);
+            const snapshot = await db.ref('pilotos').once('value');
+            const data = snapshot.val();
+            
+            let idPendente = null;
 
-            const snapshot = await ref.once('value');
-            const pData = snapshot.val();
+            if (data) {
+                for (let id in data) {
+                    if (data[id].categoria === categoria && data[id].piloto === piloto && data[id].volta2 === "00:00:000") {
+                        idPendente = id;
+                        break;
+                    }
+                }
+            }
 
-            if (!pData) {
-                await ref.set({
+            if (!idPendente) {
+                const novaRef = db.ref('pilotos').push(); 
+                await novaRef.set({
                     categoria: categoria,
                     piloto: piloto,
                     volta1: tempo,
                     volta2: "00:00:000"
                 });
-                alert("Volta 1 salva!");
+                alert(`Nova entrada criada para ${piloto}! Volta 1 salva!`);
             } else {
-                if (pData.volta2 === "00:00:000") {
-                    await ref.update({ volta2: tempo });
-                    alert("Volta 2 salva!");
-                } else {
-                    alert("Este piloto já possui as 2 voltas registradas nesta categoria!");
-                }
+                await db.ref('pilotos/' + idPendente).update({ volta2: tempo });
+                alert(`Volta 2 salva na entrada atual de ${piloto}!`);
             }
             document.getElementById('tempo').value = "";
         }
@@ -197,6 +200,7 @@
             return `${String(min).padStart(2,'0')}:${String(seg).padStart(2,'0')}:${String(mil).padStart(3,'0')}`;
         }
 
+        // LÓGICA DO PDF: Filtra apenas a entrada mais rápida de cada piloto e monta a classificação geral
         async function exportarPDF() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
@@ -208,11 +212,29 @@
 
             if (!data) { alert("Não há dados para exportar."); return; }
 
-            let listaPilotos = [];
+            // Primeiro passo: Processar todas as entradas vindas do banco
+            let todasEntradas = [];
+            
+            // Vamos agrupar para saber qual número da entrada cada registro representa cronologicamente
+            let contadorPorPilotoCat = {};
+
             for (let k in data) {
                 const p = data[k];
+                const chaveAgrupamento = `${p.categoria}_${p.piloto}`;
+                
+                if (!contadorPorPilotoCat[chaveAgrupamento]) {
+                    contadorPorPilotoCat[chaveAgrupamento] = 1;
+                } else {
+                    contadorPorPilotoCat[chaveAgrupamento]++;
+                }
+
                 const soma = tParaMs(p.volta1) + tParaMs(p.volta2);
-                listaPilotos.push({ ...p, totalMs: soma, totalStr: msParaT(soma) });
+                todasEntradas.push({ 
+                    ...p, 
+                    totalMs: soma, 
+                    totalStr: msParaT(soma),
+                    numeroEntrada: contadorPorPilotoCat[chaveAgrupamento]
+                });
             }
 
             const logoUrl = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRakETPU1WsKmBi2ppw7axi6RJ9ie0KAWookA&s";
@@ -223,9 +245,9 @@
             img.onload = function() {
                 doc.addImage(img, 'PNG', 10, 10, 30, 30);
                 doc.setFontSize(18);
-                doc.text(`RELATÓRIO DE PROVA`, 45, 22);
+                doc.text(`CLASSIFICAÇÃO GERAL DA PROVA`, 45, 22);
                 doc.setFontSize(12);
-                doc.text(`${nomeEtapa}`, 45, 30);
+                doc.text(`Etapa: ${nomeEtapa}`, 45, 30);
                 doc.setFontSize(10);
                 doc.text(`Gerado em: ${new Date().toLocaleString()}`, 45, 36);
                 
@@ -233,29 +255,57 @@
                 const cats = ["PRODUCTION", "SUPER PRODUCTION", "PROTOTIPO", "UTV", "INICIANTE"];
 
                 cats.forEach(cat => {
-                    let filtrados = listaPilotos.filter(p => p.categoria === cat).sort((a,b) => a.totalMs - b.totalMs);
-                    if (filtrados.length > 0) {
-                        doc.setFontSize(14);
-                        doc.setTextColor(40);
-                        doc.text(`Categoria: ${cat}`, 10, y);
+                    let filtradosCategoria = todasEntradas.filter(p => p.categoria === cat);
+                    
+                    if (filtradosCategoria.length > 0) {
                         
-                        const rows = filtrados.map((p, i) => [`${i+1}º`, p.piloto, p.volta1, p.volta2, p.totalStr]);
+                        // NOVIDADE: Filtra para manter somente o melhor tempo total de cada piloto único
+                        let melhoresTemposPilotos = {};
                         
-                        doc.autoTable({
-                            startY: y + 5,
-                            head: [['Pos', 'Piloto', 'Volta 1', 'Volta 2', 'Total']],
-                            body: rows,
-                            theme: 'grid',
-                            headStyles: { fillColor: [243, 156, 18] },
-                            styles: { fontSize: 10 }
+                        filtradosCategoria.forEach(registro => {
+                            // Só considera se ambas as voltas foram completadas (evita registrar soma incompleta como melhor tempo)
+                            if(registro.volta1 !== "00:00:000" && registro.volta2 !== "00:00:000") {
+                                const nome = registro.piloto;
+                                if (!melhoresTemposPilotos[nome] || registro.totalMs < melhoresTemposPilotos[nome].totalMs) {
+                                    melhoresTemposPilotos[nome] = registro;
+                                }
+                            }
                         });
-                        y = doc.lastAutoTable.finalY + 15;
+
+                        // Transforma o objeto de melhores tempos de volta em uma lista ordenada por tempo crescente
+                        let rankingFinal = Object.values(melhoresTemposPilotos);
+                        rankingFinal.sort((a, b) => a.totalMs - b.totalMs);
+
+                        if(rankingFinal.length > 0) {
+                            doc.setFontSize(14);
+                            doc.setTextColor(40);
+                            doc.text(`Categoria: ${cat}`, 10, y);
+                            
+                            // Constrói as linhas do PDF exibindo a Posição Oficial, Nome, as Voltas obtidas e qual Entrada gerou aquele recorde
+                            const rows = rankingFinal.map((p, i) => [
+                                `${i + 1}º`, 
+                                p.piloto, 
+                                `Entrada ${p.numeroEntrada}`, 
+                                p.volta1, 
+                                p.volta2, 
+                                p.totalStr
+                            ]);
+                            
+                            doc.autoTable({
+                                startY: y + 5,
+                                head: [['Pos', 'Piloto', 'Origem do Tempo', 'Volta 1', 'Volta 2', 'Tempo Total']],
+                                body: rows,
+                                theme: 'grid',
+                                headStyles: { fillColor: [40, 167, 69] }, // Cor verde para destacar que é a classificação final
+                                styles: { fontSize: 10 }
+                            });
+                            y = doc.lastAutoTable.finalY + 15;
+                        }
                     }
                 });
-                doc.save(`Resultado_${nomeEtapa}.pdf`);
+                doc.save(`Classificacao_Final_${nomeEtapa}.pdf`);
             };
         }
     </script>
 </body>
-
 </html>
