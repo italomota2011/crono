@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Painel de Tempos</title>
+    <title>Ranking por Menor Tempo com Entrada</title>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }
         .header-container { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
@@ -46,14 +46,12 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // Converte o formato '00:00:000' para Milissegundos para cálculo/ordenação
         function tParaMs(t) {
             if (!t || t === "00:00:000") return 0;
             const p = t.split(':');
             return (parseInt(p[0]) * 60000) + (parseInt(p[1]) * 1000) + parseInt(p[2]);
         }
 
-        // Converte Milissegundos de volta para o formato de exibição '00:00:000'
         function msParaT(ms) {
             if (ms === 0) return "00:00:000";
             const min = Math.floor(ms / 60000);
@@ -70,32 +68,44 @@
             db.ref('pilotos').once('value', snapshot => {
                 const data = snapshot.val();
                 let lista = [];
+                
+                // AJUSTE CRUCIAL: Dicionário para contar as entradas individuais de cada piloto por categoria
+                let contadorIndividualPorPiloto = {};
+
                 for (let k in data) {
                     const p = data[k];
                     const soma = tParaMs(p.volta1) + tParaMs(p.volta2);
-                    lista.push({ ...p, totalMs: soma, totalStr: msParaT(soma) });
+                    
+                    // Chave única para controle (Ex: "PRODUCTION_ITALO")
+                    const chaveControle = `${p.categoria}_${p.piloto}`;
+                    
+                    if (!contadorIndividualPorPiloto[chaveControle]) {
+                        contadorIndividualPorPiloto[chaveControle] = 1;
+                    } else {
+                        contadorIndividualPorPiloto[chaveControle]++;
+                    }
+
+                    lista.push({ 
+                        ...p, 
+                        totalMs: soma, 
+                        totalStr: msParaT(soma),
+                        numeroEntrada: contadorIndividualPorPiloto[chaveControle] // Salva o número correto do piloto antes de ordenar
+                    });
                 }
 
                 const categorias = ["PRODUCTION", "SUPER PRODUCTION", "PROTOTIPO", "UTV", "INICIANTE"];
                 let html = '';
 
                 categorias.forEach(cat => {
-                    // 1. Filtra os pilotos da categoria na ordem original do banco
                     let filtrados = lista.filter(p => p.categoria === cat);
                     
                     if (filtrados.length > 0) {
-                        // 2. Mapeia adicionando o número da entrada correspondente (1, 2, 3...) ANTES de ordenar
-                        let entradasComNumero = filtrados.map((p, index) => {
-                            return { ...p, numeroEntrada: index + 1 };
-                        });
+                        // Ordena a lista da categoria pelos menores tempos (ordem crescente)
+                        filtrados.sort((a, b) => a.totalMs - b.totalMs);
 
-                        // 3. MUDANÇA: Ordena de forma crescente (menor tempo total primeiro)
-                        entradasComNumero.sort((a, b) => a.totalMs - b.totalMs);
-
-                        // Monta a tabela exibindo tanto o número da Entrada quanto o Tempo Ordenado
                         html += `<h3>CATEGORIA: ${cat}</h3><table><thead><tr><th>Entrada de Pista</th><th>Piloto</th><th>Volta 1</th><th>Volta 2</th><th>Total</th></tr></thead><tbody>`;
                         
-                        entradasComNumero.forEach((p) => {
+                        filtrados.forEach((p) => {
                             html += `<tr><td>Nº ${p.numeroEntrada}</td><td>${p.piloto}</td><td>${p.volta1}</td><td>${p.volta2}</td><td><strong>${p.totalStr}</strong></td></tr>`;
                         });
                         html += `</tbody></table>`;
